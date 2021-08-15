@@ -4,7 +4,7 @@ from numpy.linalg import norm
 rng = np.random.default_rng(12345)
 import matplotlib.pyplot as plt
 import seaborn as sns
-sns.set_theme()       
+sns.set_theme()  
 
 class Environment:
     """Defines an evironment by feeding it a list  segments, defined by two 
@@ -36,5 +36,65 @@ class Environment:
             plt.scatter(obstacle_[0],obstacle_[1], s=4, label=f"Barrier")
             plt.gca().set_prop_cycle(None)
         plt.show()
-     
+
+    
+
+
+
+    def plot_flow(self, peds=0, drag=30, size_target=20, size_obstacle=4, alpha=.3, groups=0, n_agents_left=0):
+        n = peds[0].steps
+        drag = peds[0].steps
+        if groups == 0:
+            plt.figure(figsize=(5,5), dpi=80)
+            plt.title(f"{self.name}:Time: {int(np.floor(n/60))}.{n%60}min")
+            plt.xlim(-20,100)
+            plt.ylim(-20,100)
+            for obstacle_ in self.obstacles_to_plot():
+                plt.scatter(obstacle_[0], obstacle_[1], s=size_obstacle, label=f"Barrier")
+                plt.gca().set_prop_cycle(None)
+            for ped in peds:
+                plt.scatter(ped.target[0],ped.target[1], s=size_target, label=f"{ped}", color="r")
+            #plt.gca().set_prop_cycle(None)
+            for ped in peds:
+                plt.plot(ped.history[0,max(1,n-drag):n],ped.history[1,max(1,n-drag):n], alpha=alpha, label=f"{ped}", color="g")
+
+        else:
+            plt.figure(figsize=(5,5), dpi=80)
+            plt.title(f"{self.name}:Time: {int(np.floor(n/60))}.{n%60}min")
+            #plt.xlim(-20,100)
+            #plt.ylim(-20,100)
+            for obstacle_ in self.obstacles_to_plot():
+                plt.scatter(obstacle_[0], obstacle_[1], s=size_obstacle, label=f"Barrier")
+                plt.gca().set_prop_cycle(None)
+            for i, ped in enumerate(peds):
+                if i < n_agents_left:
+                    color = "r"
+                else:
+                    color = "g"
+                plt.scatter(ped.target[0],ped.target[1], s=size_target, label=f"{ped}", color=color)
+            for i, ped in enumerate(peds):
+                if i < n_agents_left:
+                    color = "r"
+                else:
+                    color = "g"
+                plt.plot(ped.history[0,max(1,n-drag):n],ped.history[1,max(1,n-drag):n], alpha=alpha, label=f"{ped}", color=color)
+
+
+
+
+    def plot_scatter(self, peds=0, drag=30, size=3):
+        n = peds[0].steps
+        plt.figure(figsize=(5,5), dpi=80)
+        plt.title(f"Time: {int(np.floor(n/60))}.{n%60}min")
+        plt.xlim(-20,100)
+        plt.ylim(-20,100)
+        for obstacle_ in self.obstacles_to_plot():
+            plt.scatter(obstacle_[0], obstacle_[1], s=4, label=f"Barrier")
+            plt.gca().set_prop_cycle(None)
+        for ped in peds:
+            plt.scatter(ped.target[0],ped.target[1], s=20, label=f"{ped}")
+        plt.gca().set_prop_cycle(None)
+        for ped in peds:
+            plt.scatter(ped.history[0,max(1,n-drag):n],ped.history[1,max(1,n-drag):n], s=size, label=f"{ped}")
+        
     
