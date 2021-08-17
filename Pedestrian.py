@@ -27,7 +27,7 @@ class Pedestrian:
                  position="Random", 
                  personal_space=10, 
                  obstacles=[[np.zeros(2),np.zeros(2)]],
-                 others_sensitivity=1, 
+                 others_sensitivity=5, 
                  obstacles_sensitivity=10e8,
                  obstacles_threshold=2):
         self.speed = np.abs(rng.normal(speed_mu,0.2)) # m/s
@@ -56,6 +56,7 @@ class Pedestrian:
         return self.position + self.speed * self.direction
     
     def direction_theta(self, direction):
+        """For a vector return the angle with respect to [1,0]"""
         direction = direction/norm(direction)
         theta = np.arccos(direction[0])
         if direction[1] < 0:
@@ -72,6 +73,8 @@ class Pedestrian:
     
     
     def _assess_obstacles(self,exp_pos_obs):
+        """If the pedestrian is expeceted to be close to an obstacle an it expects to want to move toward the 
+           obstacle, then return a high loss."""
         obstacles = self.obstacles
         dist_to_obstacles = 10e7*np.ones(len(obstacles))
         for i , obstacle in enumerate(obstacles):
@@ -84,7 +87,7 @@ class Pedestrian:
             angle_xy = np.arccos(cos_xy)
             angle_xz = np.arccos(cos_xz)
             angle_yz = np.arccos(cos_yz)
-            if (angle_xy +.1 >= angle_xz) & (angle_xy +.1 >= angle_yz): # next direction towards obstacle
+            if (angle_xy +.2 >= angle_xz) & (angle_xy +.2 >= angle_yz): # next direction towards obstacle
                 cos_ = np.dot(obstacle[1]-obstacle[0],exp_pos_obs-obstacle[0])/(norm(obstacle[1]-obstacle[0])*norm(exp_pos_obs-obstacle[0]))
                 dist = (norm(exp_pos_obs-obstacle[0])* np.sqrt(1-cos_**2))
                 if dist < self.obstacles_threshold:
@@ -94,23 +97,28 @@ class Pedestrian:
     
         
     def walk_theta(self):
+        """Finds optimal step and compromise step by minimizing the loss function."""
+        # I fix current preferred direction
         preferred = ((self.target - self.position) / norm(self.target - self.position)) 
+        # Loss function
         def f(theta):
             theta = theta[0]
             direction_theta = np.array([np.cos(theta), np.sin(theta)])
             exp_pos = self.position + self.speed * direction_theta
-            exp_pos_obs = self.position + 2* self.speed * direction_theta
-            dissatisfaction = norm(self.assess_positions - exp_pos.reshape(2,1), axis=0)
-            dissatisfaction = self.others_sensitivity/(.1 + dissatisfaction)
+            exp_pos_obs = self.position + 2* self.speed * direction_theta # 2 --> Longer sight for assessing obstacles
+            dissatisfaction_ped = norm(self.assess_positions - exp_pos.reshape(2,1), axis=0)
+            dissatisfaction_ped = self.others_sensitivity/(.1 + dissatisfaction_ped)
             dissatisfaction_obs = self.obstacles_sensitivity*self._assess_obstacles(exp_pos_obs)
-            inconvenience_f = norm(preferred - direction_theta)**2
-            return inconvenience_f + np.sum(dissatisfaction**2) + np.sum(dissatisfaction_obs)
+            inconvenience_f = norm(preferred - direction_theta)**2  # round theta to e-15 
+            return inconvenience_f + np.sum(dissatisfaction_ped**2) + np.sum(dissatisfaction_obs)
         x0 = self.direction_theta(self.direction)
+        # argmin on loss function
         theta_ = minimize(f,x0).x[0]
         self.direction_outlook = np.array([np.cos(theta_), np.sin(theta_)])
         self.position += self.speed * self.direction_outlook
         self.current_step += 1
         self.history[:,self.current_step] = self.position
         self.direction = self.direction_outlook
+        # Stop moving if arrived at target
         if norm(self.position - self.target) < 3:
             self.speed = 0
